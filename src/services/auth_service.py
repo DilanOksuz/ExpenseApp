@@ -24,6 +24,6 @@ def register(username: str, pw1: str, pw2: str):
     if _username_exist(username):
         raise ValueError("Bu kullanıcı adı zaten alınmış")
 
-    uid = new_id(id)
+    uid = new_id()
     append_row(USERS_FILE, [uid , username.strip(), pw1])
     return{"user_id":uid , "username":username.strip()}

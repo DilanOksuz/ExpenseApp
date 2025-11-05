@@ -4,10 +4,13 @@ def normalize_username(name : str) -> str:
     return (name or "").strip().lower()
 
 def validate_username(name: str):
+    name = name or ""
     if not name.strip():
-        raise ValueError("Kullanıcı adı boş olamaz")
-    if len(name.strip)<5:
-        raise ValueError("Kullancı adı 5 karakterden fazla olmalı ")
+        raise ValueError("Kullanıcı adı boş olamaz.")
+    if len(name.strip()) < 5:
+        raise ValueError("Kullanıcı adı en az 5 karakter olmalı.")
+    if "\t" in name or "\n" in name or "\r" in name:
+        raise ValueError("Kullanıcı adında geçersiz karakter var (TAB veya satır sonu).")
 
 def validate_password(pw: str):
     if not pw:
