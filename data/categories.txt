@@ -1,1 +1,3 @@
-# category_id	user_id	name
+e2fe7f7d-b473-4249-a1b0-bb9cd88142d6	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	expense	kira
+dc97ceac-43f1-4ca4-bd50-f34db6909b1a	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	expense	faturalar
+2b99f710-79e3-4284-942e-dabc4b9b63eb	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	income	ek gelir

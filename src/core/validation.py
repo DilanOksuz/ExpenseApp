@@ -18,5 +18,10 @@ def validate_password(pw: str):
     if len(pw) < 5:
         raise ValueError("Şifre 5 karaktrden az olamaz")
     
+def validate_category_name(name:str) -> None:
+    if not (name or "").strip():
+        raise ValueError("Kategpri adı boş olamaz. ")
+    if "\t" in name or "\n" in name or "\r" in name:
+        raise ValueError("Kategori adında geçersiz karakter var")
 
 

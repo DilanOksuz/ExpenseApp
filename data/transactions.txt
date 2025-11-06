@@ -1,2 +1,1 @@
-# transaction_id	user_id	date	type	amount	category_id	description
-    
+# transaction_id	                         user_id	                         date	type	amount	category_id	description
