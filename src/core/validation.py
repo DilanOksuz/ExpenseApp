@@ -44,15 +44,22 @@ def validate_amount_basic(amount_str: str) -> float:
     return float(f"{val:.2f}")
 
 
-def validate_date_basic(date_str: str | None ) -> str:
-    s=(date_str or "").strip()
+from datetime import datetime
+TRANSACTION_DATE_FMT = "%d-%m-%Y"
+
+def validate_date_basic(date_str: str | None) -> str:
+    s = (date_str or "").strip()
     if not s:
+        # Boşsa bugünün tarihi
         return datetime.now().strftime(TRANSACTION_DATE_FMT)
-    try : 
-        dt = datetime.strftime(s, TRANSACTION_DATE_FMT)
+    try:
+        # string → datetime
+        dt = datetime.strptime(s, TRANSACTION_DATE_FMT)
     except ValueError:
         raise ValueError(f"Tarih formatı {TRANSACTION_DATE_FMT} olmalı")
+    # datetime → string
     return dt.strftime(TRANSACTION_DATE_FMT)
+
 
 def validate_description_basic(desc: str | None) -> str:
     desc = (desc or "").strip()

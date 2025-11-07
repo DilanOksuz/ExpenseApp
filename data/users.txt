@@ -1,3 +1,5 @@
 # user_id	                          user_name	password
 4d213cda-0e92-439a-9460-7ce1f3f29b96	dilansu	dilansu
 9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	dilan	123123123
+45fb74bf-4e92-4043-bb7e-62791c8e697f	zeynep	123456
+78c5d801-c401-4bfc-8508-2d717075afa9	dilan123	12345
