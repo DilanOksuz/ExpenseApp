@@ -1,5 +1,8 @@
 from src.services import auth_service
 from src.services import category_service
+from src.services import transaction_service
+from src.services import report_service
+
 
 def ask(prompt: str) -> str:
     return input(prompt).strip()
@@ -53,68 +56,375 @@ def welcome_loop() -> dict | None:
             print("Geçersiz Seçim. Lütfen 1,2 veya 3 seçin.")
         
 
-def category_menu(user:dict ) -> None:
+def category_menu(user: dict) -> None:
+    def pick_index_from_names(title: str, names: list[str]) -> str | None:
+        print(f"\n{title}")
+        if not names:
+            print("(liste boş)")
+            return None
+        for i, nm in enumerate(names, 1):
+            print(f"{i}) {nm}")
+        while True:
+            s = ask("Seçim (numara): ")
+            try:
+                idx = int(s)
+                if 1 <= idx <= len(names):
+                    return names[idx - 1]
+            except ValueError:
+                pass
+            print("Geçersiz seçim.")
+
+    def ask_type() -> str:
+        while True:
+            t = ask("Tür (income/expense): ").lower().strip()
+            if t in ("income", "expense"):
+                return t
+            print("Hatalı tür. 'income' veya 'expense' girin.")
+
     while True:
         print(""" KATEGORİ İŞLEMLERİ
-              1)Kategori Ekle
-              2)Kategori Listele
-              3)Kategori Dpzenle
-              4)Kategori Sil
-              5)Geri
-    """)
-        sel = input("Seçiminiz: ").strip()
-
+                1) Kategori Ekle
+                2) Kategori Listele (türe göre)
+                3) Kategori Düzenle (tür → indeks)
+                4) Kategori Sil (tür → indeks → onay)
+                5) Geri
+                """)
+        sel = ask("Seçiminiz: ").strip()
 
         if sel == "1":
             name = ask("Kategori adı: ")
-            type_ = ask("Kategori (income/expense) : ").lower()
+            type_ = ask_type()
             try:
                 cat = category_service.create_category(user["user_id"], name, type_)
                 print(f"Eklendi: {cat['name']} [{cat['type']}] (ID: {cat['category_id']})")
             except ValueError as e:
                 print(f"Hata: {e}")
             except Exception as e:
-                print(f"Bilinmeyen Hata {e}")
+                print(f"Bilinmeyen Hata: {e}")
 
-        elif sel =="2":
-            cats = category_service.list_categories(user["user_id"])
-            if not cats:
-                print("Hiç kategori yok.")
-            else: 
-                print("\nID\t\t\t\t\tTÜR\tAD")
-                for c in cats:
-                    print(f"{c['category_id']}\t{c['type']}\t{c['name']}")
+        elif sel == "2":
+            type_ = ask_type()
+            names = category_service.list_category_names_by_type(user["user_id"], type_)
+            if not names:
+                print(f"{type_} türünde kategori yok.")
+            else:
+                print(f"\n{type_.upper()} kategorileri:")
+                for nm in names:
+                    print(f" - {nm}")
 
         elif sel == "3":
-            old_name = ask("Düzenlenecek kategori adı:")
-            type_ = ask("Tür (income/expense) :").lower()
-            new_name = ask("Yeni isim:")
+            type_ = ask_type()
+            names = category_service.list_category_names_by_type(user["user_id"], type_)
+            if not names:
+                print(f"{type_} türünde kategori yok.")
+                continue
+
+            old_name = pick_index_from_names(f"{type_.upper()} kategorileri (düzenleme):", names)
+            if not old_name:
+                continue
+
+            new_name = ask("Yeni isim: ").strip()
             try:
                 category_service.update_category_by_name(old_name, new_name, user["user_id"], type_)
-                print("Kategori Güncellendi.")
+                print("Kategori güncellendi.")
             except ValueError as e:
-                print(f"Bilinmeyen Hata: {e}")
+                print(f"Hata: {e}")
             except Exception as e:
                 print(f"Bilinmeyen Hata: {e}")
 
-        elif sel =="4":
-            name = ask("Silinecek kategori adı")
-            type_ = ask("Tür (income/expense):").lower()
+        elif sel == "4":
+            type_ = ask_type()
+            names = category_service.list_category_names_by_type(user["user_id"], type_)
+            if not names:
+                print(f"{type_} türünde kategori yok.")
+                continue
+
+            name = pick_index_from_names(f"{type_.upper()} kategorileri (silme):", names)
+            if not name:
+                continue
+
+            ok = ask(f"'{name}' kategorisini silmek istediğinize emin misiniz? (yes/no): ").lower()
+            if ok not in ("y", "yes", "e", "evet"):
+                print("İşlem iptal edildi.")
+                continue
+
             try:
                 category_service.delete_category_by_name(name, user["user_id"], type_)
-                print("Kategori silindi. ")
+                print("Kategori silindi.")
             except ValueError as e:
-                print(f"Bilinmeyen Hata {e}")
+                print(f"Hata: {e}")
             except Exception as e:
-                print(f"Nilinmeyen Hata {e}")
-
+                print(f"Bilinmeyen Hata: {e}")
 
         elif sel == "5":
             break
         else:
-            print("yanlış seçim" )
-            
+            print("Yanlış seçim.")
 
+
+
+
+def transaction_menu(user: dict, type_: str) -> None:
+    type_ = (type_ or "").strip().lower()
+    header = "GELİR" if type_ == "income" else "GİDER"
+
+    def pick_from_list(title, items, allow_none=False):
+        print(f"\n{title}")
+        if allow_none:
+            print("0) (Boş bırak)")
+        if not items:
+            print("(liste boş)")
+            return None if allow_none else None
+
+        for i, (_, label) in enumerate(items, 1):
+            print(f"{i}) {label}")
+
+        while True:
+            s = ask("Seçim (numara): ")
+            try:
+                idx = int(s)
+                if allow_none and idx == 0:
+                    return None
+                if 1 <= idx <= len(items):
+                    return items[idx - 1][0]
+            except ValueError:
+                pass
+            print("Geçersiz seçim.")
+
+    def print_txn_table(rows):
+        print("\n#\tTARİH\t\tTUTAR\tKATEGORİ\tAÇIKLAMA")
+        for r in rows:
+            print(f"{r['index']}\t{r['date']}\t{r['amount']:.2f}\t{r['category_name']}\t{r['description']}")
+
+    def choose_edit_field():
+        print("""
+                Hangi alanı düzenlemek istersiniz?
+                1) Açıklama
+                2) Kategori
+                3) Tutar
+                4) Tamamla
+                5) Vazgeç
+                """)
+        s = ask("Seçiminiz: ").strip()
+        if s == "1": return "description"
+        if s == "2": return "category_id"
+        if s == "3": return "amount"
+        if s == "4": return "commit"
+        if s == "5": return "cancel"
+        print("Geçersiz seçim.")
+        return None
+
+    while True:
+        print(f"""{header} İŞLEMLERİ
+                1) {header} Ekle
+                2) {header} Sil
+                3) {header} Düzenle
+                4) {header} Listele
+                4) Geri
+                """)
+        sel = ask("Seçiminiz: ").strip()
+
+        if sel == "1":
+            cats = category_service.list_categories(user["user_id"])
+            cats_of_type = [(c["category_id"], c["name"]) for c in cats if c["type"] == type_]
+            cat_id = pick_from_list(f"{header} kategorileri:", cats_of_type, allow_none=True)
+
+            amount = ask("Tutar: ")
+            date_s = ask("Tarih (GG-AA-YYYY) [boş=bugün]: ")
+            desc = ask("Açıklama (opsiyonel): ")
+
+            try:
+                tx = transaction_service.create_transaction(
+                    user["user_id"], type_, amount, date_s, cat_id, desc
+                )
+                cname = transaction_service.get_category_name_by_id(user["user_id"], tx["category_id"]) or "(yok)"
+                print(f"Eklendi: {tx['date']} | {tx['amount']:.2f} | {cname} | id={tx['transaction_id']}")
+            except ValueError as e:
+                print(f"Hata: {e}")
+            except Exception as e:
+                print(f"Bilinmeyen Hata: {e}")
+
+        elif sel == "2":
+            rows = transaction_service.enumerate_transactions_for_edit(user["user_id"], type_)
+            if not rows:
+                print(f"Hiç {header.lower()} kaydı yok.")
+                continue
+
+            print_txn_table(rows)
+
+            try:
+                idx = int(ask("Silinecek kayıt numarası (#): "))
+                if idx < 1 or idx > len(rows):
+                    print("Geçersiz numara.")
+                    continue
+            except ValueError:
+                print("Geçersiz numara.")
+                continue
+
+            ok = ask("Silmek istediğinize emin misiniz? (yes/no): ").lower()
+            if ok not in ("y", "yes", "e", "evet"):
+                print("İşlem iptal edildi.")
+                continue
+
+            txn_id = rows[idx - 1]["transaction_id"]
+            try:
+                transaction_service.delete_transaction_by_id(txn_id, user["user_id"])
+                print("Kayıt silindi.")
+            except ValueError as e:
+                print(f"Hata: {e}")
+            except Exception as e:
+                print(f"Bilinmeyen Hata: {e}")
+
+        elif sel == "3":
+            rows = transaction_service.enumerate_transactions_for_edit(user["user_id"], type_)
+            if not rows:
+                print(f"Düzenlenecek {header.lower()} kaydı yok.")
+                continue
+
+            print_txn_table(rows)
+
+            try:
+                idx = int(ask("Düzenlenecek kayıt numarası (#): "))
+                if idx < 1 or idx > len(rows):
+                    print("Geçersiz numara.")
+                    continue
+            except ValueError:
+                print("Geçersiz numara.")
+                continue
+
+            current = rows[idx - 1]
+            temp_desc = current["description"]
+            temp_cid  = current["category_id"]
+            temp_amt  = f"{current['amount']:.2f}"
+
+            while True:
+                cname = transaction_service.get_category_name_by_id(user["user_id"], temp_cid) or "(yok)"
+                print(f"""
+                            Seçilen kayıt:
+                            Tarih: {current['date']}
+                            Tutar: {temp_amt}
+                            Kategori: {cname}  (id={temp_cid or "-"})
+                            Açıklama: {temp_desc}
+                            """)
+                field = choose_edit_field()
+                if not field:
+                    continue
+
+                if field == "description":
+                    temp_desc = ask("Yeni açıklama (boş bırakılabilir): ")
+
+                elif field == "category_id":
+                    cats = category_service.list_categories(user["user_id"])
+                    cats_of_type = [(c["category_id"], c["name"]) for c in cats if c["type"] == type_]
+                    sel_cid = pick_from_list(f"{header} kategorileri:", cats_of_type, allow_none=True)
+                    temp_cid = sel_cid if sel_cid else None
+
+                elif field == "amount":
+                    temp_amt = ask("Yeni tutar: ")
+
+                elif field == "commit":
+                    try:
+                        old_amt = f"{current['amount']:.2f}"
+                        new_amt_f = transaction_service._parse_amount_no_try(temp_amt)
+                        new_amt_s = f"{new_amt_f:.2f}"
+                        if old_amt != new_amt_s:
+                            transaction_service.update_transaction_by_index(user["user_id"], type_, idx, "amount", temp_amt)
+
+                        if (current["category_id"] or None) != (temp_cid or None):
+                            transaction_service.update_transaction_by_index(user["user_id"], type_, idx, "category_id", temp_cid or "")
+
+                        if (current["description"] or "") != (temp_desc or ""):
+                            transaction_service.update_transaction_by_index(user["user_id"], type_, idx, "description", temp_desc or "")
+
+                        print("Değişiklikler kaydedildi.")
+                    except ValueError as e:
+                        print(f"Hata: {e}")
+                        continue
+                    except Exception as e:
+                        print(f"Bilinmeyen Hata: {e}")
+                        continue
+                    break  
+
+                elif field == "cancel":
+                    print("Değişiklikler kaydedilmedi (vazgeçildi).")
+                    break
+        elif sel == "4":
+            rows = transaction_service.enumerate_transactions_for_edit(user["user_id"], type_)
+            if not rows:
+                print(f"Hiç {header.lower()} kaydı yok.")
+                continue
+
+            print_txn_table(rows)
+        
+        elif sel == "5":
+            break
+        else:
+            print("Yanlış seçim.")
+
+
+def reports_menu(user: dict) -> None:
+    while True:
+        print("""RAPORLAR
+  1) Toplam Gelir / Gider / Bakiye
+  2) Son Gün Özeti
+  3) Aylık Dağılım (Yıl seç)
+  4) Kategori Bazında Toplamlar (Gelir/Gider)
+  5) Geri
+""")
+        sel = ask("Seçiminiz: ").strip()
+
+        if sel == "1":
+            inc = report_service.total_income(user["user_id"])
+            exp = report_service.total_expense(user["user_id"])
+            bal = report_service.balance(user["user_id"])
+            print(f"\nToplam Gelir:  {inc:.2f}")
+            print(f"Toplam Gider:  {exp:.2f}")
+            print(f"Bakiye:        {bal:.2f}")
+
+        elif sel == "2":
+            try:
+                n = int(ask("Kaç gün? "))
+            except ValueError:
+                print("Geçersiz sayı.")
+                continue
+            res = report_service.totals_last_n_days(user["user_id"], n)
+            print(f"\nSon {n} gün:")
+            print(f"  Gelir:  {res['income']:.2f}")
+            print(f"  Gider:  {res['expense']:.2f}")
+            print(f"  Net:    {res['net']:.2f}")
+
+        elif sel == "3":
+            try:
+                y = int(ask("Yıl: "))
+            except ValueError:
+                print("Geçersiz yıl.")
+                continue
+            t = ask("Tür (income/expense/boş=her ikisi): ").strip().lower()
+            t = t if t in ("income", "expense") else None
+            monthly = report_service.monthly_breakdown(user["user_id"], y, t)
+            print(f"\n{y} Aylık Toplamlar ({t or 'tümü'}):")
+            for m in range(1, 13):
+                print(f"{m:02d}: {monthly[m]:.2f}")
+
+        elif sel == "4":
+            t = ask("Tür (income/expense): ").strip().lower()
+            if t not in ("income", "expense"):
+                print("Geçersiz tür.")
+                continue
+            rows = report_service.by_category(user["user_id"], t)
+            print(f"\nKategori Bazında Toplamlar ({t}):")
+            if not rows:
+                print("(kayıt yok)")
+            else:
+                for name, total in rows:
+                    print(f" - {name}: {total:.2f}")
+
+        elif sel == "5":
+            break
+        else:
+            print("Yanlış seçim.")
+
+            
 def app_menu(user:dict ) -> None:
     while True:
         print(""" ANA MENU
@@ -129,13 +439,14 @@ def app_menu(user:dict ) -> None:
         secim = ask("Seçiminiz:")
 
         if secim == "1":
-            print("gelir menusu")
+            transaction_menu(user, "income")
         if secim == "2":
-            print("gider menusu")
+            transaction_menu(user, "expense")
         if secim =="3" : 
             category_menu(user)
         if secim == "4":
-            print("rapor menusu oluşturulacak ")
+            reports_menu(user)
+    
         if secim == "5":
             print("hesap işlemleri olusturulacak. ")
         if secim=="6":

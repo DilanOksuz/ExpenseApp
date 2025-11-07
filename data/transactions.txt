@@ -1,1 +1,3 @@
-# transaction_id	                         user_id	                         date	type	amount	category_id	description
+c745542a-3e8c-46ce-b354-6f98dfb0c6c1	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	07-11-2025	expense	12.00	dc97ceac-43f1-4ca4-bd50-f34db6909b1a	12121
+70797601-24ae-4739-bc0d-49a5eea0799d	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	07-11-2025	income	2.00	0ede964a-f3ed-4aa0-8285-9bafb81556f4	kapkaç
+1f086973-87d5-4312-a45c-e5f258fde2bd	9a56d24e-e09d-46d7-94bb-7c0fcaf9c201	07-11-2025	income	30000.00	0ede964a-f3ed-4aa0-8285-9bafb81556f4	dilan kapkaç
